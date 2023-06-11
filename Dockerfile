@@ -7,6 +7,7 @@ WORKDIR /app
 RUN pip install -r requirements.txt
 
 USER 1000
+EXPOSE 8443
 
 CMD ["python", "main.py"]
 

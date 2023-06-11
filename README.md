@@ -8,8 +8,19 @@ This is my pet-project that allows to search for torrents using [Torrent-api-py]
 * Run `python3 main.py` to start the app
 * Visit `localhost:8443` and search what you need
 
+## Running in docker
+```bash
+docker build -t torrent-app ./
+docker run -d -p 8443:8443 -e TR_HOST=transmisson_rpc_host \
+TR_PORT=transmission_rpc_port \
+TR_USER=transmission_rpc_user \
+TR_PASS=transmission_rpc_pass \
+TORRENT_API_URL=torrent_api_url
+```
+
 ## Available paths
 * `:8443/` - home page with search prompt
 * `:8443/search` - page with search results
 * `:8443/download` - downloads specified torrent share
 * `:8443/downloads` - displays status of all active torrent downloads
+

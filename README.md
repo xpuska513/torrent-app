@@ -24,3 +24,13 @@ TORRENT_API_URL=torrent_api_url
 * `:8443/download` - downloads specified torrent share
 * `:8443/downloads` - displays status of all active torrent downloads
 
+## TODO
+* Add more functionality
+  * Add ability to specify default path for downloads
+  * Add ability to specift path per download
+  * Add telegram integration
+    * Add subscription feature to check for any results for given query
+    * Schedule downloads of subscribed queries
+    * Notification about download status
+
+* Clean code

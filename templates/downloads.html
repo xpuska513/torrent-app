@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Current Downloads</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+</head>
+<body>
+    {% include 'navbar.html' %}
+    <div class="container">
+        <h1 class="text-center my-4">Current Downloads</h1>
+        <ul id="torrents" class="list-group">
+            <!-- Torrents will be dynamically loaded here -->
+        </ul>
+    </div>
+    <script>
+        const socket = io.connect('http://' + document.domain + ':' + location.port);
+
+        socket.on('downloads', data => {
+            const torrents = document.getElementById('torrents');
+            torrents.innerHTML = '';
+            for (let i = 0; i < data.length; i++) {
+                torrents.innerHTML += `
+                    <li class="list-group-item">
+                        <h2>${data[i].name}</h2>
+                        <p>Status: ${data[i].status}</p>
+                        <p>Size: ${data[i].total_size}</p>
+                        <p>Downloaded: ${data[i].downloaded}</p>
+                        <p>Progress: ${data[i].progress}%</p>
+                        <div class="progress">
+                            <div class="progress-bar" role="progressbar" style="width: ${data[i].progress}%" aria-valuenow="${data[i].progress}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        <button class="btn btn-danger" onclick="deleteTorrent(${data[i].id})">Delete</button>
+                    </li>
+                `;
+            }
+        });
+
+        function deleteTorrent(torrent_id) {
+            if (confirm('Are you sure you want to delete this torrent?')) {
+                $.post("/delete", { "torrent_id": torrent_id.toString() }, function(data){
+                    if(data.status === 'success'){
+                        alert("Torrent deleted successfully!");
+                    }
+                    else{
+                        alert("Failed to delete torrent.");
+                    }
+                });
+            }
+        }
+        
+    </script>
+</body>
+</html>

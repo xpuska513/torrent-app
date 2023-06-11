@@ -1,0 +1,4 @@
+flask
+requests
+transmission-rpc
+flask-socketio

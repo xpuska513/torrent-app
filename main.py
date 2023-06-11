@@ -25,8 +25,9 @@ def home():
 @app.route('/search', methods=['GET', 'POST'])
 def search():
     if request.method == 'POST':
-        query = request.form.get('q')
-        response = requests.get(f'{torrent_api_url}?site=tgx&query={query}')
+        query = request.form.get('query')
+        site = request.form.get('site')
+        response = requests.get(f'{torrent_api_url}?site={site}&query={query}')
         results = response.json()
         print("[DEBUG]", results)
         if 'error' in results:

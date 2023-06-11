@@ -2,54 +2,193 @@
 <html>
 <head>
     <title>Current Downloads</title>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-Fy6S3B9q64WdZWQUiU+q4/2Lc9npb8tCaSX9FK7E8HnRr0Jz8D6OP9dO5Vg3Q9ct" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <style>
+        .torrent {
+            border: 1px solid #dee2e6;
+            border-radius: .25rem;
+            padding: 15px;
+            margin-bottom: 15px;
+            background-color: #f8f9fa;
+        }
+    </style>
 </head>
 <body>
     {% include 'navbar.html' %}
     <div class="container">
         <h1 class="text-center my-4">Current Downloads</h1>
-        <ul id="torrents" class="list-group">
+        <div id="torrents">
             <!-- Torrents will be dynamically loaded here -->
-        </ul>
+        </div>
     </div>
     <script>
         const socket = io.connect('http://' + document.domain + ':' + location.port);
+
+        function humanFileSize(size) {
+            let i = Math.floor( Math.log(size) / Math.log(1024) );
+            return ( size / Math.pow(1024, i) ).toFixed(2) * 1 + ' ' + ['B', 'kB', 'MB', 'GB', 'TB'][i];
+        };
+
+        function getStatusLabel(status) {
+            console.log(`DEBUG: ${status}`)
+            let label = '';
+            switch(status) {
+                case 'check pending':
+                case 'checking':
+                    label = 'warning';
+                    break;
+                case 'downloading':
+                    label = 'primary';
+                    break;
+                case 'seeding':
+                    label = 'info';
+                    break;
+                case 'finished':
+                    label = 'success';
+                    break;
+                case 'stopped':
+                    label = 'warning';
+                    break;
+                default:
+                    label = 'secondary';
+            }
+            console.log(label);  // Add this line
+            return `<span class="badge badge-${label}">${status}</span>`;
+        }
+        
+        
 
         socket.on('downloads', data => {
             const torrents = document.getElementById('torrents');
             torrents.innerHTML = '';
             for (let i = 0; i < data.length; i++) {
+                let addedDate = new Date(data[i].added_date);
                 torrents.innerHTML += `
-                    <li class="list-group-item">
-                        <h2>${data[i].name}</h2>
-                        <p>Status: ${data[i].status}</p>
-                        <p>Size: ${data[i].total_size}</p>
-                        <p>Downloaded: ${data[i].downloaded}</p>
+                    <div class="torrent">
+                        <div class="d-flex justify-content-between">
+                            <h4>${data[i].name}</h4>
+                            <div>
+                                <button class="btn btn-warning" onclick="pauseTorrent(${data[i].id})">Pause</button>
+                                <button class="btn btn-success" onclick="resumeTorrent(${data[i].id})">Resume</button>
+                                <button class="btn btn-danger" onclick="deleteTorrent(${data[i].id})">Delete</button>
+                            </div>
+                        </div>
+                        <p>${getStatusLabel(data[i].status)}</p>
+                        <p>Size: ${humanFileSize(data[i].total_size)}</p>
+                        <p>Downloaded: ${humanFileSize(data[i].downloaded)}</p>
                         <p>Progress: ${data[i].progress}%</p>
+                        <p>ETA: ${data[i].eta}</p>
+                        <p>Added on: ${addedDate.toLocaleDateString()} ${addedDate.toLocaleTimeString()}</p>
                         <div class="progress">
                             <div class="progress-bar" role="progressbar" style="width: ${data[i].progress}%" aria-valuenow="${data[i].progress}" aria-valuemin="0" aria-valuemax="100"></div>
                         </div>
-                        <button class="btn btn-danger" onclick="deleteTorrent(${data[i].id})">Delete</button>
-                    </li>
+                    </div>
                 `;
             }
         });
 
-        function deleteTorrent(torrent_id) {
-            if (confirm('Are you sure you want to delete this torrent?')) {
-                $.post("/delete", { "torrent_id": torrent_id.toString() }, function(data){
-                    if(data.status === 'success'){
-                        alert("Torrent deleted successfully!");
-                    }
-                    else{
-                        alert("Failed to delete torrent.");
+        function pauseTorrent(id) {
+            confirmAction('Are you sure you want to pause this torrent?', function() {
+                fetch(`/pause/${id}`, {
+                    method: 'POST'
+                }).then(response => {
+                    if (response.ok) {
+                        document.getElementById('alertModalBody').textContent = `Paused torrent ${id}`;
+                        $('#alertModal').modal('show');
+                    } else {
+                        document.getElementById('alertModalBody').textContent = 'Error pausing torrent';
+                        $('#alertModal').modal('show');
                     }
                 });
-            }
+            });
         }
         
+        function deleteTorrent(id) {
+            confirmAction('Are you sure you want to delete this torrent?', function() {
+                fetch(`/delete/${id}`, {
+                    method: 'POST'
+                }).then(response => {
+                    if (response.ok) {
+                        document.getElementById('alertModalBody').textContent = `Deleted torrent ${id}`;
+                        $('#alertModal').modal('show');
+                    } else {
+                        document.getElementById('alertModalBody').textContent = 'Error deleting torrent';
+                        $('#alertModal').modal('show');
+                    }
+                });
+            });
+        }
+        
+        
+        function resumeTorrent(id) {
+            fetch(`/resume/${id}`, {
+                method: 'POST'
+            }).then(response => {
+                if (response.ok) {
+                    document.getElementById('alertModalBody').textContent = `Resumed torrent ${id}`;
+                    $('#alertModal').modal('show');
+                } else {
+                    document.getElementById('alertModalBody').textContent = 'Error resuming torrent';
+                    $('#alertModal').modal('show');
+                }
+            });
+        }
+
+        function confirmAction(message, action) {
+            document.getElementById('confirmModalBody').textContent = message;
+            const confirmButton = document.getElementById('confirmModalConfirm');
+            // Clear all previous event listeners on the confirm button
+            const newButton = confirmButton.cloneNode(true);
+            confirmButton.parentNode.replaceChild(newButton, confirmButton);
+            // Add new event listener to call the action function when clicked
+            newButton.addEventListener('click', function() {
+                $('#confirmModal').modal('hide');
+                action();
+            });
+            $('#confirmModal').modal('show');
+        }
+        
+        
     </script>
+    <div class="modal fade" id="alertModal" tabindex="-1" role="dialog" aria-labelledby="alertModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="alertModalLabel">Alert</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" id="alertModalBody">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal fade" id="confirmModal" tabindex="-1" role="dialog" aria-labelledby="confirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmModalLabel">Confirmation</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" id="confirmModalBody">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="confirmModalConfirm">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
 </body>
 </html>
